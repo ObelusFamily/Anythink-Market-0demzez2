@@ -1,3 +1,5 @@
+import sys
+
 from typing import Optional
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Response
@@ -24,6 +26,7 @@ from app.models.schemas.items import (
 from app.resources import strings
 from app.services.items import check_item_exists, get_slug_for_item
 from app.services.event import send_event
+from app.services.openaiservice import get_url_image_openai
 
 router = APIRouter()
 
@@ -68,6 +71,8 @@ async def create_new_item(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=strings.ITEM_ALREADY_EXISTS,
         )
+    if not item_create.image:
+        item_create.image = get_url_image_openai(item_create.title)
     item = await items_repo.create_item(
         slug=slug,
         title=item_create.title,
@@ -75,7 +80,7 @@ async def create_new_item(
         body=item_create.body,
         seller=user,
         tags=item_create.tags,
-        image=item_create.image
+        image=item_create.image,
     )
     send_event('item_created', {'item': item_create.title})
     return ItemInResponse(item=ItemForResponse.from_orm(item))
